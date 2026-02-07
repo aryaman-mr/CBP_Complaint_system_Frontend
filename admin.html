@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - CricketBatPro</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Admin Panel</h1>
+            <button class="btn btn-danger" onclick="auth.logout()">Logout</button>
+        </div>
+
+        <div class="card">
+            <h2>All Complaints</h2>
+            <div id="complaintsContainer"></div>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script>
+        if (!auth.isLoggedIn()) utils.redirect('../index.html');
+        if (!auth.isAdmin()) utils.redirect('dashboard.html');
+
+        async function loadComplaints() {
+            try {
+                const complaints = await api.complaints.getAll();
+                const container = document.getElementById('complaintsContainer');
+                
+                if (complaints.length === 0) {
+                    container.innerHTML = '<p>No complaints found.</p>';
+                    return;
+                }
+
+                container.innerHTML = complaints.map(complaint => `
+                    <div class="complaint-item">
+                        <h4>${complaint.complaintType} - ${complaint.casino}</h4>
+                        <p><strong>User:</strong> ${complaint.userId.name} (${complaint.userId.email})</p>
+                        <p><strong>Contact:</strong> ${complaint.name} - ${complaint.phone}</p>
+                        <p><strong>Status:</strong> <span class="status ${complaint.status.toLowerCase()}">${complaint.status}</span></p>
+                        <p><strong>Description:</strong> ${complaint.description}</p>
+                        <p><strong>Submitted:</strong> ${utils.formatDate(complaint.createdAt)}</p>
+                        ${complaint.proofFile ? `<p><strong>Proof:</strong> <a href="http://localhost:5000/uploads/${complaint.proofFile}" target="_blank">View File</a></p>` : ''}
+                        
+                        ${complaint.status === 'Pending' ? `
+                            <div style="margin-top: 15px;">
+                                <button class="btn btn-success" onclick="updateStatus('${complaint._id}', 'Approved')">Approve</button>
+                                <button class="btn btn-danger" onclick="updateStatus('${complaint._id}', 'Declined')">Decline</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                utils.showMessage(error.message, 'error');
+            }
+        }
+
+        async function updateStatus(id, status) {
+            try {
+                await api.complaints.updateStatus(id, status);
+                utils.showMessage(`Complaint ${status.toLowerCase()} successfully!`);
+                loadComplaints();
+            } catch (error) {
+                utils.showMessage(error.message, 'error');
+            }
+        }
+
+        loadComplaints();
+    </script>
+</body>
+</html>
